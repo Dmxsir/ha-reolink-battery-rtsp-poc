@@ -1,16 +1,16 @@
 {
   "diagnostics": {
     "github_diagnostics": {
-      "attempted": true,
+      "attempted": false,
       "branch": "diagnostics",
       "enabled": true,
       "failure_type": null,
-      "http_status": 200,
-      "last_attempt_time": "2026-08-18T20:36:44.284604+00:00",
-      "last_success_time": "2026-08-18T20:36:45.587107+00:00",
+      "http_status": null,
+      "last_attempt_time": null,
+      "last_success_time": null,
       "path": "diagnostics/latest.json",
       "repository": "Dmxsir/ha-reolink-battery-rtsp-poc",
-      "success": true,
+      "success": false,
       "token_configured": true,
       "token_exposed": false
     },
@@ -19,63 +19,81 @@
       "background_streaming_enabled": false,
       "bcmedia_info_frames": 1,
       "bcmedia_observed": true,
-      "body_frames": 412,
+      "body_frames": 177,
       "bounded_duration_seconds": 20.0,
-      "cmd3_frames": 412,
+      "cmd3_frames": 177,
       "connection_lost_exception_present": false,
-      "elapsed_seconds": 23.116,
+      "elapsed_seconds": 20.584,
       "experimental": true,
       "failure_stage": null,
       "failure_type": null,
-      "first_cmd3_delay_ms": 103.812,
-      "h264_frames": 99,
+      "first_cmd3_delay_ms": 78.935,
+      "h264_frames": 30,
+      "h264_payload": {
+        "annexb_prefixed_frames": 30,
+        "four_byte_start_codes": 44,
+        "frames_observed": 30,
+        "iframe_payloads": 7,
+        "nal_type_counts": {
+          "idr_slice": 7,
+          "non_idr_slice": 23,
+          "pps": 7,
+          "sps": 7
+        },
+        "nal_units_observed": 44,
+        "non_annexb_prefixed_frames": 0,
+        "payload_bytes_observed": 1375714,
+        "pframe_payloads": 23,
+        "raw_values_exposed": false,
+        "three_byte_start_codes": 0
+      },
       "h265_frames": 0,
-      "heartbeat_count": 25,
-      "iframe_frames": 8,
+      "heartbeat_count": 21,
+      "iframe_frames": 7,
       "manual_only": true,
       "media_activity": {
-        "cmd3_frames_first_half": 175,
-        "cmd3_frames_second_half": 237,
-        "first_half_media_bytes": 1496424,
-        "first_media_offset_seconds": 0.104,
-        "last_media_offset_seconds": 23.05,
-        "media_bytes_seen": 2640624,
+        "cmd3_frames_first_half": 33,
+        "cmd3_frames_second_half": 144,
+        "first_half_media_bytes": 584376,
+        "first_media_offset_seconds": 0.079,
+        "last_media_offset_seconds": 20.512,
+        "media_bytes_seen": 1401264,
         "probe_duration_seconds": 20.0,
         "raw_values_exposed": false,
-        "second_half_media_bytes": 1144200
+        "second_half_media_bytes": 816888
       },
       "parser_telemetry": {
         "first_video_header": {
           "additional_header_bytes": 8,
           "codec": "H264",
-          "declared_payload_bytes": 60306,
+          "declared_payload_bytes": 203874,
           "frame_type": "iframe"
         },
         "header_hits": {
-          "audio": 186,
-          "iframe": 8,
+          "audio": 93,
+          "iframe": 7,
           "info": 1,
-          "pframe": 92
+          "pframe": 23
         },
-        "media_bytes_seen": 2640624,
+        "media_bytes_seen": 1401264,
         "pending_packet": {
-          "additional_header_bytes": 0,
-          "available_bytes": 32,
-          "codec": "H264",
-          "declared_payload_bytes": 14873,
-          "total_bytes": 14904,
-          "type": "pframe"
+          "additional_header_bytes": null,
+          "available_bytes": 0,
+          "codec": null,
+          "declared_payload_bytes": null,
+          "total_bytes": null,
+          "type": null
         },
         "raw_values_exposed": false,
-        "rolling_buffer_bytes": 32,
-        "rolling_buffer_peak_bytes": 162736,
+        "rolling_buffer_bytes": 0,
+        "rolling_buffer_peak_bytes": 163912,
         "stop_observation": {
           "cmd3_frames_after_stop_send": null,
-          "cmd3_frames_at_stop_send": 305,
+          "cmd3_frames_at_stop_send": 170,
           "quiet_after_stop": null
         }
       },
-      "pframe_frames": 91,
+      "pframe_frames": 23,
       "raw_values_exposed": false,
       "response_code": null,
       "start_accepted": true,
@@ -91,7 +109,7 @@
         "stream_type": 0
       },
       "start_response_code": 200,
-      "stop_accepted": false,
+      "stop_accepted": true,
       "stop_attempted": true,
       "stop_request": {
         "body_length": 130,
@@ -102,50 +120,50 @@
         "preview_handle": 0,
         "stream_type": 0
       },
-      "stop_response_code": null,
+      "stop_response_code": 200,
       "stream_kind": "main",
       "success": true,
-      "termination_reason": "stop_timeout",
-      "total_body_bytes": 2679260,
+      "termination_reason": "duration_reached",
+      "total_body_bytes": 1417963,
       "udp_media_keepalive": {
         "enabled": true,
         "error_count": 0,
         "interval_seconds": 0.5,
         "last_error_type": null,
         "raw_values_exposed": false,
-        "sent_count": 47,
+        "sent_count": 41,
         "started": true,
         "stopped": true
       },
       "udp_sequence": {
-        "ack_sent_count": 2492,
-        "bc_packets_received": 2490,
-        "duplicate_or_old_packets": 2,
+        "ack_sent_count": 1286,
+        "bc_packets_received": 1284,
+        "duplicate_or_old_packets": 0,
         "final_gap_open": false,
         "final_pending_packets": 0,
-        "first_gap_offset_seconds": 23.788,
-        "gap_recovery_events": 1,
-        "in_order_packets": 2470,
-        "last_ack_offset_seconds": 25.119,
-        "last_bc_packet_offset_seconds": 25.119,
-        "longest_gap_seconds": 0.197,
-        "max_gap_packets": 19,
-        "max_pending_packets": 18,
-        "out_of_order_events": 18,
+        "first_gap_offset_seconds": 2.616,
+        "gap_recovery_events": 5,
+        "in_order_packets": 1153,
+        "last_ack_offset_seconds": 20.584,
+        "last_bc_packet_offset_seconds": 20.584,
+        "longest_gap_seconds": 1.035,
+        "max_gap_packets": 36,
+        "max_pending_packets": 36,
+        "out_of_order_events": 131,
         "raw_sequence_ids_exposed": false,
         "unresolved_gap_seconds": null
       },
       "uid_resolve": {
-        "datagrams_sent": 8,
-        "elapsed_ms": 793.096,
+        "datagrams_sent": 32,
+        "elapsed_ms": 4290.388,
         "network_identifiers_exposed": false,
         "resend_interval_seconds": 0.5,
-        "send_rounds": 2,
+        "send_rounds": 8,
         "succeeded": true,
         "timeout_seconds": 15.0
       },
-      "unknown_body_frames": 126,
-      "video_frames": 99
+      "unknown_body_frames": 53,
+      "video_frames": 30
     },
     "source_integration": {
       "configured": true,
@@ -155,5 +173,5 @@
     }
   },
   "source": "reolink_battery_rtsp_poc",
-  "uploaded_at": "2026-08-18T20:38:01.579693+00:00"
+  "uploaded_at": "2026-08-18T20:46:46.890892+00:00"
 }
