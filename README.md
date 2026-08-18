@@ -60,7 +60,30 @@ The first target is to prove that the camera returns live BcMedia/H264/H265 data
 8. Search for **Reolink Battery RTSP PoC**.
 9. Select the existing Reolink Battery camera entry.
 
-After setup, open the PoC device and press **Probe live stream** once. Then download Diagnostics from the **Reolink Battery RTSP PoC** integration.
+After setup, open the PoC device and press **Probe live stream** once.
+
+## Optional automatic Diagnostics upload
+
+The PoC can automatically commit its **secret-safe Diagnostics only** after every Live View probe, including failed probes. Uploads go to the dedicated `diagnostics` branch and update only:
+
+```text
+diagnostics/latest.json
+```
+
+Git history retains the previous versions, so the repository does not accumulate a new file for every test.
+
+To enable it:
+
+1. Create a **fine-grained personal access token** in GitHub.
+2. Restrict repository access to **Dmxsir/ha-reolink-battery-rtsp-poc only**.
+3. Grant repository permission **Contents: Read and write**. No Workflows permission is required.
+4. In Home Assistant open **Settings -> Devices & services -> Reolink Battery RTSP PoC -> Configure**.
+5. Enable **Upload diagnostics automatically** and paste the token.
+
+The token is stored in the Home Assistant config entry options. It is never written to GitHub, never included in Diagnostics and never printed in logs. Leaving the token field blank during a later Configure operation keeps the existing token.
+
+> [!IMPORTANT]
+> This repository is public. The uploaded document intentionally excludes credentials, tokens, UID, IP addresses and raw media. Do not extend the uploader to raw protocol payloads without reviewing the privacy impact first.
 
 ## בעברית
 
@@ -68,7 +91,9 @@ After setup, open the PoC device and press **Probe live stream** once. Then down
 
 להתקנה דרך HACS: הוסף את `Dmxsir/ha-reolink-battery-rtsp-poc` כ־**Custom repository** מסוג **Integration**, הורד אותו, בצע Restart ל־Home Assistant, ולאחר מכן הוסף את האינטגרציה **Reolink Battery RTSP PoC** ובחר את המצלמה הקיימת.
 
-בשלב הנוכחי הכפתור **בדיקת תצוגה חיה** מעיר את המצלמה, מפעיל `cmd3` למשך 10 שניות, מחפש BcMedia/H264/H265, שולח `cmd4` וסוגר את החיבור. לאחר הבדיקה יש להוציא Diagnostics מה־PoC.
+בשלב הנוכחי הכפתור **בדיקת תצוגה חיה** מעיר את המצלמה, מפעיל `cmd3` למשך 10 שניות, מחפש BcMedia/H264/H265, שולח `cmd4` וסוגר את החיבור.
+
+אפשר להפעיל גם העלאה אוטומטית של ה־Diagnostics ל־GitHub. צור Fine-grained token שמוגבל רק ל־repository הזה ועם **Contents: Read and write**, ואז פתח **Configure** של ה־PoC, הפעל את האפשרות והדבק את ה־token. אחרי כל בדיקה הקובץ `diagnostics/latest.json` בענף `diagnostics` יתעדכן אוטומטית. ה־token, ה־UID, כתובות IP וסיסמאות אינם נכללים בקובץ.
 
 ## License
 
