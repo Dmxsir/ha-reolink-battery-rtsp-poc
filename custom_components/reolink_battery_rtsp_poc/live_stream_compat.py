@@ -10,18 +10,19 @@ Applied compatibility behavior:
 - switch to fresh heartbeat transaction ids only after login succeeds;
 - parse BcMedia as one rolling byte stream across cmd3 message boundaries;
 - count complete Info/I/P/audio packets from their declared lengths;
+- optionally forward complete H264 payloads to an in-memory consumer;
 - allocate a separate Baichuan message number for cmd4 Preview stop;
 - during this diagnostic PoC, accept the active cmd4 response regardless of the
   echoed msgNum so we can distinguish a header-match issue from no response.
 
 Nothing in this module imports or patches the production ``reolink_battery``
-package. No raw media bytes are persisted or exposed in diagnostics.
+package. Raw media is never persisted or exposed in diagnostics.
 """
 
 from __future__ import annotations
 
 import secrets
-from typing import Any
+from typing import Any, Callable
 
 from . import live_stream_probe as probe
 from .h264_payload_telemetry import (
@@ -47,19 +48,19 @@ _ORIGINAL_SEND_LIVE_STREAM_PROBE = _LiveStreamConnection.send_live_stream_probe
 _ORIGINAL_CLEAR_LIVE_PROBE = _LiveStreamProtocol.clear_live_probe
 _ORIGINAL_OBSERVE_LIVE_FRAME = _LiveStreamConnection._observe_live_frame
 
-# BcMedia magics are little-endian u32 values rendered on the wire as ASCII-like
-# four-byte markers. The channel digit is encoded into the first byte for video.
 _INFO_MAGICS = (b"1001", b"1002")
 _VIDEO_MAGICS = tuple(
     f"{channel}{frame_type}dc".encode("ascii")
     for channel in range(10)
     for frame_type in (0, 1)
 )
-_AUDIO_MAGICS = (b"05wb", b"01wb")  # AAC, ADPCM
+_AUDIO_MAGICS = (b"05wb", b"01wb")
 _ALL_MAGICS = _INFO_MAGICS + _VIDEO_MAGICS + _AUDIO_MAGICS
 _MAX_MEDIA_PACKET_BYTES = 4 * 1024 * 1024
 _MAX_ADDITIONAL_HEADER_BYTES = 64 * 1024
 _MAX_ROLLING_BUFFER_BYTES = 8 * 1024 * 1024
+
+H264Sink = Callable[[bytes, str], None]
 
 
 def _earliest_magic_offset(data: bytearray) -> int | None:
@@ -72,18 +73,17 @@ def _padding8(payload_size: int) -> int:
     return 0 if remainder == 0 else 8 - remainder
 
 
-def _parse_rolling_bcmedia(buffer: bytearray, trace) -> int:
-    """Consume complete BcMedia packets and return how many were parsed.
-
-    The parser extracts packet type, codec and declared sizes. Complete H264
-    payloads are inspected only for Annex-B/NAL metadata and are never retained.
-    """
+def _parse_rolling_bcmedia(
+    buffer: bytearray,
+    trace,
+    h264_sink: H264Sink | None = None,
+) -> int:
+    """Consume complete BcMedia packets and return how many were parsed."""
     parsed = 0
 
     while buffer:
         offset = _earliest_magic_offset(buffer)
         if offset is None:
-            # Keep only enough trailing bytes for a magic split across cmd3 bodies.
             if len(buffer) > 3:
                 del buffer[:-3]
             break
@@ -95,7 +95,6 @@ def _parse_rolling_bcmedia(buffer: bytearray, trace) -> int:
         magic = bytes(buffer[:4])
 
         if magic in _INFO_MAGICS:
-            # InfoV1/V2 packets are fixed 32 bytes including the four-byte magic.
             if len(buffer) < 32:
                 break
             header_size = int.from_bytes(buffer[4:8], "little")
@@ -109,8 +108,6 @@ def _parse_rolling_bcmedia(buffer: bytearray, trace) -> int:
             continue
 
         if magic in _VIDEO_MAGICS:
-            # magic + codec + payload_size + additional_header_size + timestamps
-            # gives a fixed 24-byte prefix before optional header and video data.
             if len(buffer) < 24:
                 break
             codec = bytes(buffer[4:8])
@@ -154,12 +151,10 @@ def _parse_rolling_bcmedia(buffer: bytearray, trace) -> int:
             payload_start = 24 + additional_header_size
             payload_end = payload_start + payload_size
             if codec == b"H264":
-                # Metadata-only inspection. observe_h264_payload does not retain
-                # or export the payload bytes.
-                observe_h264_payload(
-                    bytes(buffer[payload_start:payload_end]),
-                    frame_type=frame_type_name,
-                )
+                payload = bytes(buffer[payload_start:payload_end])
+                observe_h264_payload(payload, frame_type=frame_type_name)
+                if h264_sink is not None:
+                    h264_sink(payload, frame_type_name)
 
             trace.video_frames += 1
             if codec == b"H264":
@@ -172,9 +167,6 @@ def _parse_rolling_bcmedia(buffer: bytearray, trace) -> int:
             continue
 
         if magic in _AUDIO_MAGICS:
-            # AAC and ADPCM both expose a 16-bit payload size immediately after
-            # the magic, followed by a duplicate size word. ADPCM's four-byte
-            # sub-header is included in that declared payload size.
             if len(buffer) < 8:
                 break
             payload_size = int.from_bytes(buffer[4:6], "little")
@@ -205,9 +197,6 @@ def _media_chunk_from_frame(connection, frame) -> bytes:
     if not body:
         return b""
 
-    # The first binary response can contain encrypted Extension XML followed by
-    # media payload. Later streaming cmd3 messages generally have offset 0 and
-    # carry raw BcMedia bytes directly.
     if frame.payload_offset <= 0:
         return body
 
@@ -224,9 +213,6 @@ def _media_chunk_from_frame(connection, frame) -> bytes:
         if decrypted_prefix is not None:
             return decrypted_prefix + payload[encrypt_len:]
 
-    # Most Preview binary payloads are already binary/plain once the encrypted
-    # extension is removed. Prefer that documented shape over decrypting the
-    # whole H264/H265 stream as if it were XML.
     return payload
 
 
@@ -262,7 +248,6 @@ def install_preauth_heartbeat_compat() -> None:
     async def _connect(self) -> None:
         await _ORIGINAL_CONNECT(self)
         if getattr(self, "_handoff_active", False):
-            # Start immediately after handoff, before host.baichuan.login().
             self.start_heartbeat()
 
     def _send_heartbeat(self) -> bool:
@@ -316,7 +301,12 @@ def install_preauth_heartbeat_compat() -> None:
         if len(rolling) > _MAX_ROLLING_BUFFER_BYTES:
             del rolling[: len(rolling) - _MAX_ROLLING_BUFFER_BYTES]
 
-        parsed = _parse_rolling_bcmedia(rolling, self._live_trace)
+        sink = getattr(self, "_poc_h264_sink", None)
+        parsed = _parse_rolling_bcmedia(
+            rolling,
+            self._live_trace,
+            sink if callable(sink) else None,
+        )
         if parsed == 0:
             self._live_trace.unknown_body_frames += 1
 
@@ -338,10 +328,6 @@ def install_preauth_heartbeat_compat() -> None:
 
     def _live_frame(self, raw: bytes):
         if len(raw) >= 16 and int.from_bytes(raw[4:8], "little") == probe.LIVE_STOP_CMD_ID:
-            # During the bounded diagnostic there is exactly one active Stop
-            # transaction. Parse any cmd4 response first, regardless of what
-            # msgNum the camera echoes, so the next diagnostics tell us whether
-            # the prior timeout was merely an overly strict correlation check.
             raw_msg_num = int.from_bytes(raw[14:16], "little")
             start_msg_num = self._live_msg_num
             self._live_msg_num = raw_msg_num
