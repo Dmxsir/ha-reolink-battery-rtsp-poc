@@ -2,22 +2,26 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import asyncio
+from dataclasses import dataclass, field
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_SOURCE_ENTRY_ID, SOURCE_DOMAIN
+from .const import CONF_SOURCE_ENTRY_ID, DOMAIN, SOURCE_DOMAIN
+from .http_stream import ReolinkBatteryH264View
 
 PLATFORMS = (Platform.BUTTON,)
+_HTTP_VIEW_REGISTERED = "http_view_registered"
 
 
 @dataclass(slots=True)
 class ReolinkBatteryRtspPocRuntime:
-    """Runtime data containing only a reference to the source config entry."""
+    """Runtime data for the isolated PoC."""
 
     source_entry_id: str
+    stream_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
 
 ReolinkBatteryRtspPocConfigEntry = ConfigEntry[ReolinkBatteryRtspPocRuntime]
@@ -48,7 +52,17 @@ async def async_setup_entry(
     entry.runtime_data = ReolinkBatteryRtspPocRuntime(
         source_entry_id=source_entry_id
     )
+
+    # Forward the button platform first. Importing it installs the already
+    # hardware-proven PoC transport/ACK compatibility before the HTTP endpoint
+    # can create a live source session.
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    domain_data = hass.data.setdefault(DOMAIN, {})
+    if not domain_data.get(_HTTP_VIEW_REGISTERED):
+        hass.http.register_view(ReolinkBatteryH264View())
+        domain_data[_HTTP_VIEW_REGISTERED] = True
+
     return True
 
 
