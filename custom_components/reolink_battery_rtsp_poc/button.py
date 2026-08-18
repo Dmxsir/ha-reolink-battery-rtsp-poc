@@ -34,6 +34,10 @@ from .live_stream_diagnostics import (
     reset_live_probe_state,
 )
 from .live_stream_probe import LiveStreamProbeError, async_probe_live_stream
+from .media_activity_telemetry import (
+    install_media_activity_telemetry,
+    snapshot_media_activity_telemetry,
+)
 from .probe_parser_telemetry import (
     install_parser_telemetry,
     snapshot_parser_telemetry,
@@ -50,12 +54,14 @@ install_preauth_heartbeat_compat()
 # Preserve every complete cmd3/cmd4 message when a receive buffer already holds
 # multiple Baichuan messages.
 install_live_buffer_compat()
-# Observation-only wrapper. Install this after the compatibility layers so it
-# cannot bypass the working auth/stream behavior.
+# Observation-only parser wrapper. Install this after the compatibility layers so
+# it cannot bypass the working auth/stream behavior.
 install_parser_telemetry()
-# Neolink-style Baichuan UDP cmd234 keepalive. Install it last so it wraps the
-# already proven transport/parser stack without replacing either layer.
+# Neolink-style Baichuan UDP cmd234 keepalive.
 install_udp_media_keepalive()
+# Timing-only observation wrapper. Install last so it sees the final stream stack
+# without altering any protocol bytes.
+install_media_activity_telemetry()
 
 
 PROBE_DESCRIPTION = ButtonEntityDescription(
@@ -73,7 +79,7 @@ async def async_setup_entry(
 
 
 class ReolinkProbeLiveStreamButton(ButtonEntity):
-    """Run one explicit 10-second main-stream probe."""
+    """Run one explicit 20-second main-stream probe."""
 
     _attr_has_entity_name = True
     _attr_should_poll = False
@@ -95,6 +101,13 @@ class ReolinkProbeLiveStreamButton(ButtonEntity):
         diagnostics = await async_get_config_entry_diagnostics(
             self.hass, self._entry
         )
+        live = diagnostics.get("live_stream_probe")
+        if isinstance(live, dict):
+            activity = snapshot_media_activity_telemetry()
+            live["bounded_duration_seconds"] = activity.get(
+                "probe_duration_seconds", 20.0
+            )
+            live["media_activity"] = activity
         await async_upload_diagnostics(self.hass, self._entry, diagnostics)
 
     @property
@@ -152,7 +165,7 @@ class ReolinkProbeLiveStreamButton(ButtonEntity):
                     source.data[SOURCE_CONF_DEVICE_PASSWORD],
                     ipaddress.ip_interface(source.data[SOURCE_CONF_INTERFACE]),
                     stream="main",
-                    duration=10.0,
+                    duration=20.0,
                 )
         except LiveStreamProbeError as err:
             probe_error = err
