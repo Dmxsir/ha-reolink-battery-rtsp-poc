@@ -1,16 +1,16 @@
 {
   "diagnostics": {
     "github_diagnostics": {
-      "attempted": false,
+      "attempted": true,
       "branch": "diagnostics",
       "enabled": true,
       "failure_type": null,
-      "http_status": null,
-      "last_attempt_time": null,
-      "last_success_time": null,
+      "http_status": 200,
+      "last_attempt_time": "2026-08-18T22:01:54.856684+00:00",
+      "last_success_time": "2026-08-18T22:01:56.550594+00:00",
       "path": "diagnostics/latest.json",
       "repository": "Dmxsir/ha-reolink-battery-rtsp-poc",
-      "success": false,
+      "success": true,
       "token_configured": true,
       "token_exposed": false
     },
@@ -171,7 +171,7 @@
       },
       "uid_resolve": {
         "datagrams_sent": 100,
-        "elapsed_ms": 15092.046,
+        "elapsed_ms": 15097.583,
         "network_identifiers_exposed": false,
         "resend_interval_seconds": 0.5,
         "send_rounds": 25,
@@ -189,5 +189,5 @@
     }
   },
   "source": "reolink_battery_rtsp_poc",
-  "uploaded_at": "2026-08-18T22:01:55.403983+00:00"
+  "uploaded_at": "2026-08-18T22:02:24.311234+00:00"
 }
