@@ -37,6 +37,7 @@ from .probe_parser_telemetry import (
     install_parser_telemetry,
     snapshot_parser_telemetry,
 )
+from .udp_media_keepalive import install_udp_media_keepalive
 
 if TYPE_CHECKING:
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -48,6 +49,9 @@ install_preauth_heartbeat_compat()
 # Observation-only wrapper. Install this after the compatibility layer so it
 # cannot bypass the working auth/stream behavior.
 install_parser_telemetry()
+# Neolink-style Baichuan UDP cmd234 keepalive. Install it last so it wraps the
+# already proven transport/parser stack without replacing either layer.
+install_udp_media_keepalive()
 
 
 PROBE_DESCRIPTION = ButtonEntityDescription(
