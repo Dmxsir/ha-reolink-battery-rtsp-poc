@@ -1,5 +1,89 @@
 {
-  "status": "waiting_for_first_probe",
+  "diagnostics": {
+    "github_diagnostics": {
+      "attempted": false,
+      "branch": "diagnostics",
+      "enabled": true,
+      "failure_type": null,
+      "http_status": null,
+      "last_attempt_time": null,
+      "last_success_time": null,
+      "path": "diagnostics/latest.json",
+      "repository": "Dmxsir/ha-reolink-battery-rtsp-poc",
+      "success": false,
+      "token_configured": true,
+      "token_exposed": false
+    },
+    "live_stream_probe": {
+      "attempted": true,
+      "background_streaming_enabled": false,
+      "bcmedia_info_frames": 0,
+      "bcmedia_observed": false,
+      "body_frames": 0,
+      "bounded_duration_seconds": 10.0,
+      "cmd3_frames": 0,
+      "connection_lost_exception_present": false,
+      "elapsed_seconds": null,
+      "experimental": true,
+      "failure_stage": "LIVE_AUTH_ERROR",
+      "failure_type": "ReolinkConnectionError",
+      "first_cmd3_delay_ms": null,
+      "h264_frames": 0,
+      "h265_frames": 0,
+      "heartbeat_count": 0,
+      "iframe_frames": 0,
+      "manual_only": true,
+      "pframe_frames": 0,
+      "raw_values_exposed": false,
+      "response_code": null,
+      "start_accepted": false,
+      "start_attempted": false,
+      "start_request": {
+        "body_length": null,
+        "header_channel_id": null,
+        "message_class": null,
+        "msg_num": null,
+        "payload_offset": null,
+        "preview_handle": null,
+        "preview_stream_type": null,
+        "stream_type": null
+      },
+      "start_response_code": null,
+      "stop_accepted": false,
+      "stop_attempted": false,
+      "stop_request": {
+        "body_length": null,
+        "header_channel_id": null,
+        "message_class": null,
+        "msg_num": null,
+        "payload_offset": null,
+        "preview_handle": null,
+        "stream_type": null
+      },
+      "stop_response_code": null,
+      "stream_kind": "main",
+      "success": false,
+      "termination_reason": null,
+      "total_body_bytes": 0,
+      "uid_resolve": {
+        "datagrams_sent": 16,
+        "elapsed_ms": 2043.123,
+        "network_identifiers_exposed": false,
+        "resend_interval_seconds": 0.5,
+        "send_rounds": 4,
+        "succeeded": true,
+        "timeout_seconds": 15.0
+      },
+      "unknown_body_frames": 0,
+      "video_frames": 0
+    },
+    "source_integration": {
+      "configured": true,
+      "credentials_exposed": false,
+      "credentials_reused_from_source": true,
+      "loaded": true
+    }
+  },
   "source": "reolink_battery_rtsp_poc",
-  "note": "This file will be replaced automatically after the first probe with GitHub diagnostics upload enabled."
+  "uploaded_at": "2026-08-18T18:46:02.106249+00:00"
 }
