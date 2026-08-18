@@ -10,6 +10,10 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 
 from . import ReolinkBatteryRtspPocConfigEntry, source_entry_for
+from .audio_payload_telemetry import (
+    install_audio_payload_telemetry,
+    snapshot_audio_payload_telemetry,
+)
 from .const import (
     DOMAIN,
     MANUFACTURER,
@@ -70,9 +74,11 @@ install_media_activity_telemetry()
 # Match Neolink's selective UDP ACK bitmap by including the highest pending
 # sequence ID. Keep this PoC-local so the production integration is untouched.
 install_udp_ack_bitmap_compat()
-# Sequence/ACK observation wrapper. Install last so it measures the corrected ACK
-# behavior without changing ordering or retransmission itself.
+# Sequence/ACK observation wrapper.
 install_udp_sequence_telemetry()
+# Audio codec/header observation only; install last so it sees the proven media
+# path without changing or retaining the audio payload.
+install_audio_payload_telemetry()
 
 
 PROBE_DESCRIPTION = ButtonEntityDescription(
@@ -121,6 +127,7 @@ class ReolinkProbeLiveStreamButton(ButtonEntity):
             live["media_activity"] = activity
             live["udp_sequence"] = snapshot_udp_sequence_telemetry()
             live["h264_payload"] = snapshot_h264_payload_telemetry()
+            live["audio_payload"] = snapshot_audio_payload_telemetry()
         await async_upload_diagnostics(self.hass, self._entry, diagnostics)
 
     @property
@@ -168,9 +175,6 @@ class ReolinkProbeLiveStreamButton(ButtonEntity):
         probe_error: LiveStreamProbeError | None = None
         result = None
         try:
-            # Share only the source integration's operation lock. The PoC has its
-            # own transport/session, so a recording download and live probe can
-            # never wake/use the battery camera concurrently.
             async with lock:
                 result = await async_probe_live_stream(
                     source.data[SOURCE_CONF_UID],
@@ -186,17 +190,11 @@ class ReolinkProbeLiveStreamButton(ButtonEntity):
         else:
             apply_live_probe_result(self._entry.entry_id, result)
 
-        # Parser telemetry is metadata-only and is captured even when the live
-        # session itself fails. This lets the next diagnostic explain exactly
-        # how far the BcMedia stream progressed without exposing media bytes.
         apply_parser_telemetry(
             self._entry.entry_id,
             snapshot_parser_telemetry(),
         )
 
-        # Export after telemetry has been finalized, including failed probes.
-        # GitHub failures are tracked separately and never replace the camera
-        # probe result.
         await self._async_upload_diagnostics_if_enabled()
 
         if probe_error is not None:
