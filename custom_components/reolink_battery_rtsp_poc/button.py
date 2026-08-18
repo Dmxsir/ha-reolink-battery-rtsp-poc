@@ -25,6 +25,7 @@ from .github_upload import (
     async_upload_diagnostics,
     github_upload_configured,
 )
+from .live_stream_compat import install_preauth_heartbeat_compat
 from .live_stream_diagnostics import (
     apply_live_probe_error,
     apply_live_probe_result,
@@ -34,6 +35,11 @@ from .live_stream_probe import LiveStreamProbeError, async_probe_live_stream
 
 if TYPE_CHECKING:
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+
+# Keep the PoC transport behavior aligned with the physically proven production
+# UID/P2P lifetime while remaining entirely inside this experimental domain.
+install_preauth_heartbeat_compat()
 
 
 PROBE_DESCRIPTION = ButtonEntityDescription(
