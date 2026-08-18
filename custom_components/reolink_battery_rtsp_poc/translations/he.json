@@ -15,6 +15,21 @@
       "already_configured": "כבר קיימת רשומת RTSP PoC עבור המצלמה הזו."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "העלאת Diagnostics ל־GitHub",
+        "description": "אפשר להעלות אוטומטית אחרי כל בדיקת Live Stream את ה־Diagnostics הבטוחים בלבד. יש להשתמש ב־Fine-grained GitHub token שמוגבל ל־repository הזה עם הרשאת Contents: Read and write. ה־token לעולם לא נכלל ב־Diagnostics. השאר את שדה ה־token ריק כדי לשמור את ה־token שכבר הוגדר.",
+        "data": {
+          "github_diagnostics_enabled": "העלה Diagnostics אוטומטית",
+          "github_token": "Fine-grained GitHub token"
+        }
+      }
+    },
+    "error": {
+      "github_token_required": "נדרש GitHub token כאשר העלאת Diagnostics אוטומטית מופעלת."
+    }
+  },
   "entity": {
     "button": {
       "probe_live_stream": {
