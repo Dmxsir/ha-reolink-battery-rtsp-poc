@@ -16,6 +16,7 @@ from .const import (
 )
 from .github_upload import github_upload_state
 from .live_stream_diagnostics import live_probe_state
+from .udp_media_keepalive import snapshot_udp_media_keepalive
 
 
 def _hex_class(value: int | None) -> str | None:
@@ -29,6 +30,7 @@ async def async_get_config_entry_diagnostics(
     source = source_entry_for(hass, entry.runtime_data.source_entry_id)
     live = live_probe_state(entry.entry_id)
     upload = github_upload_state(entry.entry_id)
+    udp_keepalive = snapshot_udp_media_keepalive()
     return {
         "source_integration": {
             "configured": source is not None,
@@ -132,6 +134,7 @@ async def async_get_config_entry_diagnostics(
                 },
                 "raw_values_exposed": live.parser_raw_values_exposed,
             },
+            "udp_media_keepalive": udp_keepalive,
             "stop_attempted": live.stop_attempted,
             "stop_response_code": live.stop_response_code,
             "stop_accepted": live.stop_accepted,
