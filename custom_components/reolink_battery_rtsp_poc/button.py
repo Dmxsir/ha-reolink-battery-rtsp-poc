@@ -29,9 +29,14 @@ from .live_stream_compat import install_preauth_heartbeat_compat
 from .live_stream_diagnostics import (
     apply_live_probe_error,
     apply_live_probe_result,
+    apply_parser_telemetry,
     reset_live_probe_state,
 )
 from .live_stream_probe import LiveStreamProbeError, async_probe_live_stream
+from .probe_parser_telemetry import (
+    install_parser_telemetry,
+    snapshot_parser_telemetry,
+)
 
 if TYPE_CHECKING:
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -40,6 +45,9 @@ if TYPE_CHECKING:
 # Keep the PoC transport behavior aligned with the physically proven production
 # UID/P2P lifetime while remaining entirely inside this experimental domain.
 install_preauth_heartbeat_compat()
+# Observation-only wrapper. Install this after the compatibility layer so it
+# cannot bypass the working auth/stream behavior.
+install_parser_telemetry()
 
 
 PROBE_DESCRIPTION = ButtonEntityDescription(
@@ -143,6 +151,14 @@ class ReolinkProbeLiveStreamButton(ButtonEntity):
             apply_live_probe_error(self._entry.entry_id, err)
         else:
             apply_live_probe_result(self._entry.entry_id, result)
+
+        # Parser telemetry is metadata-only and is captured even when the live
+        # session itself fails. This lets the next diagnostic explain exactly
+        # how far the BcMedia stream progressed without exposing media bytes.
+        apply_parser_telemetry(
+            self._entry.entry_id,
+            snapshot_parser_telemetry(),
+        )
 
         # Export after telemetry has been finalized, including failed probes.
         # GitHub failures are tracked separately and never replace the camera
