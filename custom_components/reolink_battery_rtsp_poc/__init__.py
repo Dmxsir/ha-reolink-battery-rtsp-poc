@@ -10,7 +10,11 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
 from .const import CONF_SOURCE_ENTRY_ID, DOMAIN, SOURCE_DOMAIN
-from .http_stream import ReolinkBatteryH264View
+from .http_stream import (
+    ReolinkBatteryAacView,
+    ReolinkBatteryAvHub,
+    ReolinkBatteryH264View,
+)
 
 PLATFORMS = (Platform.BUTTON,)
 _HTTP_VIEW_REGISTERED = "http_view_registered"
@@ -22,6 +26,7 @@ class ReolinkBatteryRtspPocRuntime:
 
     source_entry_id: str
     stream_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    av_hub: object | None = None
 
 
 ReolinkBatteryRtspPocConfigEntry = ConfigEntry[ReolinkBatteryRtspPocRuntime]
@@ -54,13 +59,16 @@ async def async_setup_entry(
     )
 
     # Forward the button platform first. Importing it installs the already
-    # hardware-proven PoC transport/ACK compatibility before the HTTP endpoint
+    # hardware-proven PoC transport/ACK/audio observers before an HTTP consumer
     # can create a live source session.
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    entry.runtime_data.av_hub = ReolinkBatteryAvHub(hass, entry)
 
     domain_data = hass.data.setdefault(DOMAIN, {})
     if not domain_data.get(_HTTP_VIEW_REGISTERED):
         hass.http.register_view(ReolinkBatteryH264View())
+        hass.http.register_view(ReolinkBatteryAacView())
         domain_data[_HTTP_VIEW_REGISTERED] = True
 
     return True
@@ -69,5 +77,8 @@ async def async_setup_entry(
 async def async_unload_entry(
     hass: HomeAssistant, entry: ReolinkBatteryRtspPocConfigEntry
 ) -> bool:
-    """Unload the isolated PoC."""
+    """Unload the isolated PoC and stop any active on-demand stream."""
+    hub = getattr(entry.runtime_data, "av_hub", None)
+    if isinstance(hub, ReolinkBatteryAvHub):
+        await hub.async_stop()
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
