@@ -7,6 +7,14 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 
 from . import ReolinkBatteryRtspPocConfigEntry, source_entry_for
+from .const import (
+    CONF_GITHUB_DIAGNOSTICS_ENABLED,
+    CONF_GITHUB_TOKEN,
+    GITHUB_DIAGNOSTICS_BRANCH,
+    GITHUB_DIAGNOSTICS_PATH,
+    GITHUB_REPOSITORY,
+)
+from .github_upload import github_upload_state
 from .live_stream_diagnostics import live_probe_state
 
 
@@ -20,12 +28,29 @@ async def async_get_config_entry_diagnostics(
     """Return only non-secret PoC telemetry."""
     source = source_entry_for(hass, entry.runtime_data.source_entry_id)
     live = live_probe_state(entry.entry_id)
+    upload = github_upload_state(entry.entry_id)
     return {
         "source_integration": {
             "configured": source is not None,
             "loaded": bool(source is not None and source.runtime_data is not None),
             "credentials_reused_from_source": True,
             "credentials_exposed": False,
+        },
+        "github_diagnostics": {
+            "enabled": bool(
+                entry.options.get(CONF_GITHUB_DIAGNOSTICS_ENABLED, False)
+            ),
+            "token_configured": bool(entry.options.get(CONF_GITHUB_TOKEN)),
+            "token_exposed": False,
+            "repository": GITHUB_REPOSITORY,
+            "branch": GITHUB_DIAGNOSTICS_BRANCH,
+            "path": GITHUB_DIAGNOSTICS_PATH,
+            "attempted": upload.attempted,
+            "success": upload.success,
+            "http_status": upload.http_status,
+            "failure_type": upload.failure_type or None,
+            "last_attempt_time": upload.last_attempt_time,
+            "last_success_time": upload.last_success_time,
         },
         "live_stream_probe": {
             "experimental": True,
