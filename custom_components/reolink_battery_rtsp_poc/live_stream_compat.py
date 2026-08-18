@@ -1,14 +1,19 @@
-"""PoC-only compatibility for the proven Argus UID/P2P auth lifetime.
+"""PoC-only compatibility for the proven Argus live-view transport.
 
-The production Reolink Battery download path starts its P2P heartbeat immediately
-after the UID/LAN socket handoff, reusing the handoff transaction id while
-Baichuan authentication is in progress. Only after login succeeds does it move
-to fresh heartbeat transaction ids.
+This module keeps the experimental RTSP PoC isolated from the production
+``reolink_battery`` integration while aligning a few protocol details with the
+physically proven Argus behavior and the documented Baichuan/BcMedia framing.
 
-The first RTSP PoC implementation started heartbeat only after login, which can
-allow this Argus session to expire during authentication. This module applies
-the proven lifetime behavior only to the PoC's private transport classes. It
-never imports or patches the production ``reolink_battery`` package.
+Applied compatibility behavior:
+- start the P2P heartbeat immediately after UID/LAN socket handoff;
+- reuse the handoff transaction id during Baichuan authentication;
+- switch to fresh heartbeat transaction ids only after login succeeds;
+- classify BcMedia I/P frame magics as channel-digit + frame-type + ``dc``;
+- allocate a fresh Baichuan message number for cmd4 Preview stop;
+- match the cmd4 response against that separate stop message number.
+
+Nothing in this module imports or patches the production ``reolink_battery``
+package.
 """
 
 from __future__ import annotations
@@ -16,6 +21,7 @@ from __future__ import annotations
 import secrets
 from typing import Any
 
+from . import live_stream_probe as probe
 from .live_stream_probe import (
     _LiveStreamConnection,
     _LiveStreamProtocol,
@@ -29,10 +35,55 @@ _ORIGINAL_APPLY_HANDOFF = BoundBaichuanUdpConnection._apply_handoff_protocol
 _ORIGINAL_CONNECT = _LiveStreamConnection.connect
 _ORIGINAL_SEND_HEARTBEAT = _LiveStreamConnection._send_heartbeat
 _ORIGINAL_PREPARE_LIVE = _LiveStreamConnection.prepare_live_probe
+_ORIGINAL_BUILD_PREVIEW_WIRE = probe._build_preview_wire
+_ORIGINAL_LIVE_FRAME = _LiveStreamProtocol._live_frame
+_ORIGINAL_SEND_LIVE_STREAM_PROBE = _LiveStreamConnection.send_live_stream_probe
+_ORIGINAL_CLEAR_LIVE_PROBE = _LiveStreamProtocol.clear_live_probe
+
+
+def _scan_bcmedia_corrected(data: bytes, trace) -> bool:
+    """Count documented BcMedia frame magics without exposing media bytes.
+
+    The little-endian BcMedia magic range encodes the channel as the first ASCII
+    digit and the frame type as the second: channel 0 I-frame = ``00dc`` and
+    channel 0 P-frame = ``01dc``. The original PoC accidentally treated the two
+    digits as a decimal number, which detected channel-0 I-frames but missed its
+    P-frames.
+    """
+    found = False
+
+    for marker in (b"1001", b"1002"):
+        count = data.count(marker)
+        if count:
+            trace.bcmedia_info_frames += count
+            found = True
+
+    for channel in range(10):
+        for frame_type, counter_name in ((0, "iframe_frames"), (1, "pframe_frames")):
+            prefix = f"{channel}{frame_type}dc".encode("ascii")
+            for codec in (b"H264", b"H265"):
+                count = data.count(prefix + codec)
+                if not count:
+                    continue
+                setattr(
+                    trace,
+                    counter_name,
+                    int(getattr(trace, counter_name, 0)) + count,
+                )
+                trace.video_frames += count
+                if codec == b"H264":
+                    trace.h264_frames += count
+                else:
+                    trace.h265_frames += count
+                found = True
+
+    if found:
+        trace.bcmedia_observed = True
+    return found
 
 
 def install_preauth_heartbeat_compat() -> None:
-    """Install the proven pre-auth heartbeat behavior once for this PoC."""
+    """Install all PoC-only transport/framing compatibility exactly once."""
     global _INSTALLED
     if _INSTALLED:
         return
@@ -84,8 +135,70 @@ def install_preauth_heartbeat_compat() -> None:
         self._poc_fresh_heartbeat_tid_enabled = True
         return trace
 
+    def _build_preview_wire(
+        baichuan,
+        *,
+        cmd_id: int,
+        stream,
+        msg_num: int | None = None,
+    ):
+        # cmd4 is a separate Baichuan transaction. Even though the original PoC
+        # passed cmd3's number here, allocate the next message number for Stop.
+        if cmd_id == probe.LIVE_STOP_CMD_ID:
+            msg_num = None
+        return _ORIGINAL_BUILD_PREVIEW_WIRE(
+            baichuan,
+            cmd_id=cmd_id,
+            stream=stream,
+            msg_num=msg_num,
+        )
+
+    def _live_frame(self, raw: bytes):
+        # The stock PoC parser has one expected msgNum for the whole probe. Keep
+        # that for cmd3, but temporarily match cmd4 against its own request number.
+        if len(raw) >= 16 and int.from_bytes(raw[4:8], "little") == probe.LIVE_STOP_CMD_ID:
+            stop_msg_num = getattr(self, "_poc_stop_msg_num", None)
+            if isinstance(stop_msg_num, int):
+                start_msg_num = self._live_msg_num
+                self._live_msg_num = stop_msg_num
+                try:
+                    return _ORIGINAL_LIVE_FRAME(self, raw)
+                finally:
+                    self._live_msg_num = start_msg_num
+        return _ORIGINAL_LIVE_FRAME(self, raw)
+
+    async def _send_live_stream_probe(
+        self,
+        start_wire: bytes,
+        stop_wire: bytes,
+        *,
+        msg_num: int,
+        duration: float,
+    ):
+        protocol = self._protocol
+        if isinstance(protocol, _LiveStreamProtocol) and len(stop_wire) >= 16:
+            protocol._poc_stop_msg_num = int.from_bytes(stop_wire[14:16], "little")
+        return await _ORIGINAL_SEND_LIVE_STREAM_PROBE(
+            self,
+            start_wire,
+            stop_wire,
+            msg_num=msg_num,
+            duration=duration,
+        )
+
+    def _clear_live_probe(self) -> None:
+        try:
+            _ORIGINAL_CLEAR_LIVE_PROBE(self)
+        finally:
+            self._poc_stop_msg_num = None
+
     BoundBaichuanUdpConnection._apply_handoff_protocol = _apply_handoff_protocol
     _LiveStreamConnection.connect = _connect
     _LiveStreamConnection._send_heartbeat = _send_heartbeat
     _LiveStreamConnection.prepare_live_probe = _prepare_live_probe
+    _LiveStreamConnection.send_live_stream_probe = _send_live_stream_probe
+    _LiveStreamProtocol._live_frame = _live_frame
+    _LiveStreamProtocol.clear_live_probe = _clear_live_probe
+    probe._scan_bcmedia = _scan_bcmedia_corrected
+    probe._build_preview_wire = _build_preview_wire
     _INSTALLED = True
