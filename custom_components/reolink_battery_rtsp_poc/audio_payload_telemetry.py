@@ -38,10 +38,16 @@ class AudioPayloadTelemetry:
     aac_payload_bytes: int = 0
     aac_adts_sync_packets: int = 0
     aac_without_adts_sync_packets: int = 0
+    aac_ff_f1_packets: int = 0
+    aac_ff_f9_packets: int = 0
+    aac_ff_f0_packets: int = 0
+    aac_ff_f8_packets: int = 0
+    aac_other_sync_packets: int = 0
     adpcm_packets: int = 0
     adpcm_payload_bytes: int = 0
     adpcm_subheader_valid_packets: int = 0
     first_codec: str | None = None
+    first_aac_header_class: str | None = None
     min_payload_bytes: int | None = None
     max_payload_bytes: int = 0
     raw_values_exposed: bool = False
@@ -65,6 +71,36 @@ def _record_payload_size(size: int) -> None:
         size if _LAST.min_payload_bytes is None else min(_LAST.min_payload_bytes, size)
     )
     _LAST.max_payload_bytes = max(_LAST.max_payload_bytes, size)
+
+
+def _record_aac_header(payload: bytes) -> None:
+    """Classify only the public ADTS sync/header variant, never raw audio."""
+    if len(payload) < 2 or payload[0] != 0xFF or (payload[1] & 0xF0) != 0xF0:
+        _LAST.aac_without_adts_sync_packets += 1
+        if _LAST.first_aac_header_class is None:
+            _LAST.first_aac_header_class = "no_adts_sync"
+        return
+
+    _LAST.aac_adts_sync_packets += 1
+    second = payload[1]
+    if second == 0xF1:
+        name = "ff_f1"
+        _LAST.aac_ff_f1_packets += 1
+    elif second == 0xF9:
+        name = "ff_f9"
+        _LAST.aac_ff_f9_packets += 1
+    elif second == 0xF0:
+        name = "ff_f0"
+        _LAST.aac_ff_f0_packets += 1
+    elif second == 0xF8:
+        name = "ff_f8"
+        _LAST.aac_ff_f8_packets += 1
+    else:
+        name = "other_adts_sync"
+        _LAST.aac_other_sync_packets += 1
+
+    if _LAST.first_aac_header_class is None:
+        _LAST.first_aac_header_class = name
 
 
 def _consume_bcmedia(
@@ -145,11 +181,7 @@ def _consume_bcmedia(
                     _LAST.first_codec = codec_name
                 _LAST.aac_packets += 1
                 _LAST.aac_payload_bytes += payload_size
-                # ADTS syncword is the first 12 bits set: 0xFFF.
-                if len(payload) >= 2 and payload[0] == 0xFF and (payload[1] & 0xF0) == 0xF0:
-                    _LAST.aac_adts_sync_packets += 1
-                else:
-                    _LAST.aac_without_adts_sync_packets += 1
+                _record_aac_header(payload)
             else:
                 codec_name = "adpcm"
                 if _LAST.first_codec is None:
