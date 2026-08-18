@@ -16,11 +16,6 @@ from .live_stream_probe import _LiveStreamConnection
 
 _INSTALLED = False
 
-_ORIGINAL_PREPARE_LIVE = _LiveStreamConnection.prepare_live_probe
-_ORIGINAL_OBSERVE_LIVE_FRAME = _LiveStreamConnection._observe_live_frame
-_ORIGINAL_SEND_WITHOUT_WAIT = _LiveStreamConnection.send_without_wait
-_ORIGINAL_SEND_LIVE_STREAM_PROBE = _LiveStreamConnection.send_live_stream_probe
-
 
 @dataclass(slots=True)
 class ParserTelemetry:
@@ -93,28 +88,30 @@ def _count_markers(connection: _LiveStreamConnection, chunk: bytes) -> None:
 
 
 def _capture_first_video_header(connection: _LiveStreamConnection, chunk: bytes) -> None:
-    if _LAST.first_video_declared_payload_bytes is not None:
-        connection._poc_telemetry_header_tail = (getattr(connection, "_poc_telemetry_header_tail", b"") + chunk)[-_HEADER_OVERLAP_BYTES:]
-        return
-
     tail = getattr(connection, "_poc_telemetry_header_tail", b"")
     scan = tail + chunk
-    earliest: tuple[int, int, str] | None = None
-    for marker, frame_type, codec in _MARKERS_WITH_CODEC:
-        offset = scan.find(marker)
-        if offset < 0:
-            continue
-        candidate = (offset, frame_type, codec)
-        if earliest is None or candidate[0] < earliest[0]:
-            earliest = candidate
 
-    if earliest is not None:
-        offset, frame_type, codec = earliest
-        if len(scan) >= offset + 24:
-            _LAST.first_video_frame_type = "iframe" if frame_type == 0 else "pframe"
-            _LAST.first_video_codec = codec
-            _LAST.first_video_declared_payload_bytes = int.from_bytes(scan[offset + 8 : offset + 12], "little")
-            _LAST.first_video_additional_header_bytes = int.from_bytes(scan[offset + 12 : offset + 16], "little")
+    if _LAST.first_video_declared_payload_bytes is None:
+        earliest: tuple[int, int, str] | None = None
+        for marker, frame_type, codec in _MARKERS_WITH_CODEC:
+            offset = scan.find(marker)
+            if offset < 0:
+                continue
+            candidate = (offset, frame_type, codec)
+            if earliest is None or candidate[0] < earliest[0]:
+                earliest = candidate
+
+        if earliest is not None:
+            offset, frame_type, codec = earliest
+            if len(scan) >= offset + 24:
+                _LAST.first_video_frame_type = "iframe" if frame_type == 0 else "pframe"
+                _LAST.first_video_codec = codec
+                _LAST.first_video_declared_payload_bytes = int.from_bytes(
+                    scan[offset + 8 : offset + 12], "little"
+                )
+                _LAST.first_video_additional_header_bytes = int.from_bytes(
+                    scan[offset + 12 : offset + 16], "little"
+                )
 
     connection._poc_telemetry_header_tail = scan[-_HEADER_OVERLAP_BYTES:]
 
@@ -125,7 +122,9 @@ def _update_pending(connection: _LiveStreamConnection) -> None:
         return
 
     _LAST.rolling_buffer_bytes = len(rolling)
-    _LAST.rolling_buffer_peak_bytes = max(_LAST.rolling_buffer_peak_bytes, len(rolling))
+    _LAST.rolling_buffer_peak_bytes = max(
+        _LAST.rolling_buffer_peak_bytes, len(rolling)
+    )
     _LAST.pending_available_bytes = len(rolling)
     _LAST.pending_packet_type = None
     _LAST.pending_codec = None
@@ -156,7 +155,9 @@ def _update_pending(connection: _LiveStreamConnection) -> None:
         _LAST.pending_declared_payload_bytes = payload_size
         _LAST.pending_additional_header_bytes = additional_header_size
         padding = 0 if payload_size % 8 == 0 else 8 - (payload_size % 8)
-        _LAST.pending_total_bytes = 24 + additional_header_size + payload_size + padding
+        _LAST.pending_total_bytes = (
+            24 + additional_header_size + payload_size + padding
+        )
         return
 
     if magic in _AUDIO_MAGICS:
@@ -177,11 +178,19 @@ def install_parser_telemetry() -> None:
     if _INSTALLED:
         return
 
+    # Capture the methods at install time, after live_stream_compat has installed
+    # its proven Argus compatibility wrappers. This makes telemetry purely
+    # additive and prevents it from bypassing the working auth/parser behavior.
+    original_prepare_live = _LiveStreamConnection.prepare_live_probe
+    original_observe_live_frame = _LiveStreamConnection._observe_live_frame
+    original_send_without_wait = _LiveStreamConnection.send_without_wait
+    original_send_live_stream_probe = _LiveStreamConnection.send_live_stream_probe
+
     def _prepare_live_probe(self, *args: Any, **kwargs: Any):
         _reset()
         self._poc_telemetry_magic_overlap = b""
         self._poc_telemetry_header_tail = b""
-        return _ORIGINAL_PREPARE_LIVE(self, *args, **kwargs)
+        return original_prepare_live(self, *args, **kwargs)
 
     def _observe_live_frame(self, frame) -> None:
         if frame.cmd_id == probe.LIVE_START_CMD_ID and frame.body:
@@ -191,7 +200,7 @@ def install_parser_telemetry() -> None:
                 _count_markers(self, chunk)
                 _capture_first_video_header(self, chunk)
 
-        _ORIGINAL_OBSERVE_LIVE_FRAME(self, frame)
+        original_observe_live_frame(self, frame)
         _update_pending(self)
 
     async def _send_without_wait(self, data: bytes, *args: Any, **kwargs: Any):
@@ -199,13 +208,18 @@ def install_parser_telemetry() -> None:
         if cmd_id is None and args:
             cmd_id = args[0]
         if cmd_id == probe.LIVE_STOP_CMD_ID:
-            _LAST.cmd3_frames_at_stop_send = int(getattr(self._live_trace, "cmd3_frames", 0))
-        return await _ORIGINAL_SEND_WITHOUT_WAIT(self, data, *args, **kwargs)
+            _LAST.cmd3_frames_at_stop_send = int(
+                getattr(self._live_trace, "cmd3_frames", 0)
+            )
+        return await original_send_without_wait(self, data, *args, **kwargs)
 
     async def _send_live_stream_probe(self, *args: Any, **kwargs: Any):
-        trace = await _ORIGINAL_SEND_LIVE_STREAM_PROBE(self, *args, **kwargs)
+        trace = await original_send_live_stream_probe(self, *args, **kwargs)
         if _LAST.cmd3_frames_at_stop_send is not None:
-            after = max(0, int(trace.cmd3_frames) - _LAST.cmd3_frames_at_stop_send)
+            after = max(
+                0,
+                int(trace.cmd3_frames) - _LAST.cmd3_frames_at_stop_send,
+            )
             _LAST.cmd3_frames_after_stop_send = after
             _LAST.stop_quiet_observed = after == 0
         _update_pending(self)
