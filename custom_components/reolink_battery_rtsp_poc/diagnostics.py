@@ -67,7 +67,9 @@ async def async_get_config_entry_diagnostics(
                 "header_channel_id": live.start_request_header_channel_id,
                 "stream_type": live.start_request_stream_type,
                 "msg_num": live.start_request_msg_num,
-                "message_class": _hex_class(live.start_request_message_class),
+                "message_class": _hex_class(
+                    live.start_request_message_class
+                ),
                 "body_length": live.start_request_body_length,
                 "payload_offset": live.start_request_payload_offset,
                 "preview_handle": live.start_request_preview_handle,
@@ -77,7 +79,9 @@ async def async_get_config_entry_diagnostics(
                 "header_channel_id": live.stop_request_header_channel_id,
                 "stream_type": live.stop_request_stream_type,
                 "msg_num": live.stop_request_msg_num,
-                "message_class": _hex_class(live.stop_request_message_class),
+                "message_class": _hex_class(
+                    live.stop_request_message_class
+                ),
                 "body_length": live.stop_request_body_length,
                 "payload_offset": live.stop_request_payload_offset,
                 "preview_handle": live.stop_request_preview_handle,
@@ -97,16 +101,51 @@ async def async_get_config_entry_diagnostics(
             "h264_frames": live.h264_frames,
             "h265_frames": live.h265_frames,
             "unknown_body_frames": live.unknown_body_frames,
+            "parser_telemetry": {
+                "media_bytes_seen": live.parser_media_bytes_seen,
+                "rolling_buffer_bytes": live.parser_rolling_buffer_bytes,
+                "rolling_buffer_peak_bytes": live.parser_rolling_buffer_peak_bytes,
+                "header_hits": {
+                    "info": live.parser_info_header_hits,
+                    "iframe": live.parser_iframe_header_hits,
+                    "pframe": live.parser_pframe_header_hits,
+                    "audio": live.parser_audio_header_hits,
+                },
+                "first_video_header": {
+                    "frame_type": live.parser_first_video_frame_type,
+                    "codec": live.parser_first_video_codec,
+                    "declared_payload_bytes": live.parser_first_video_declared_payload_bytes,
+                    "additional_header_bytes": live.parser_first_video_additional_header_bytes,
+                },
+                "pending_packet": {
+                    "type": live.parser_pending_packet_type,
+                    "codec": live.parser_pending_codec,
+                    "declared_payload_bytes": live.parser_pending_declared_payload_bytes,
+                    "additional_header_bytes": live.parser_pending_additional_header_bytes,
+                    "total_bytes": live.parser_pending_total_bytes,
+                    "available_bytes": live.parser_pending_available_bytes,
+                },
+                "stop_observation": {
+                    "cmd3_frames_at_stop_send": live.parser_cmd3_frames_at_stop_send,
+                    "cmd3_frames_after_stop_send": live.parser_cmd3_frames_after_stop_send,
+                    "quiet_after_stop": live.parser_stop_quiet_observed,
+                },
+                "raw_values_exposed": live.parser_raw_values_exposed,
+            },
             "stop_attempted": live.stop_attempted,
             "stop_response_code": live.stop_response_code,
             "stop_accepted": live.stop_accepted,
             "heartbeat_count": live.heartbeat_count,
-            "connection_lost_exception_present": live.connection_lost_exception_present,
+            "connection_lost_exception_present": (
+                live.connection_lost_exception_present
+            ),
             "elapsed_seconds": live.elapsed_seconds,
             "termination_reason": live.termination_reason or None,
             "uid_resolve": {
                 "timeout_seconds": live.uid_resolve_timeout_seconds,
-                "resend_interval_seconds": live.uid_resolve_resend_interval_seconds,
+                "resend_interval_seconds": (
+                    live.uid_resolve_resend_interval_seconds
+                ),
                 "send_rounds": live.uid_resolve_send_rounds,
                 "datagrams_sent": live.uid_resolve_datagrams_sent,
                 "elapsed_ms": live.uid_resolve_elapsed_ms,
