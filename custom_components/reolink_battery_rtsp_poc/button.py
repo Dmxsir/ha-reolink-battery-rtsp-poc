@@ -20,6 +20,11 @@ from .const import (
     SOURCE_CONF_MODEL,
     SOURCE_CONF_UID,
 )
+from .diagnostics import async_get_config_entry_diagnostics
+from .github_upload import (
+    async_upload_diagnostics,
+    github_upload_configured,
+)
 from .live_stream_diagnostics import (
     apply_live_probe_error,
     apply_live_probe_result,
@@ -60,6 +65,15 @@ class ReolinkProbeLiveStreamButton(ButtonEntity):
         return source_entry_for(
             self.hass, self._entry.runtime_data.source_entry_id
         )
+
+    async def _async_upload_diagnostics_if_enabled(self) -> None:
+        """Upload the sanitized diagnostics document without affecting the probe."""
+        if not github_upload_configured(self._entry):
+            return
+        diagnostics = await async_get_config_entry_diagnostics(
+            self.hass, self._entry
+        )
+        await async_upload_diagnostics(self.hass, self._entry, diagnostics)
 
     @property
     def available(self) -> bool:
@@ -103,6 +117,8 @@ class ReolinkProbeLiveStreamButton(ButtonEntity):
             raise HomeAssistantError("SOURCE_LOCAL_CREDENTIALS_INCOMPLETE")
 
         reset_live_probe_state(self._entry.entry_id, stream_kind="main")
+        probe_error: LiveStreamProbeError | None = None
+        result = None
         try:
             # Share only the source integration's operation lock. The PoC has its
             # own transport/session, so a recording download and live probe can
@@ -117,9 +133,17 @@ class ReolinkProbeLiveStreamButton(ButtonEntity):
                     duration=10.0,
                 )
         except LiveStreamProbeError as err:
+            probe_error = err
             apply_live_probe_error(self._entry.entry_id, err)
-            raise HomeAssistantError(err.stage) from None
+        else:
+            apply_live_probe_result(self._entry.entry_id, result)
 
-        apply_live_probe_result(self._entry.entry_id, result)
-        if not result.trace.bcmedia_observed:
+        # Export after telemetry has been finalized, including failed probes.
+        # GitHub failures are tracked separately and never replace the camera
+        # probe result.
+        await self._async_upload_diagnostics_if_enabled()
+
+        if probe_error is not None:
+            raise HomeAssistantError(probe_error.stage) from None
+        if result is None or not result.trace.bcmedia_observed:
             raise HomeAssistantError("LIVE_MEDIA_NOT_OBSERVED")
