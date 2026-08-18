@@ -1,14 +1,15 @@
-"""Secret-safe BcMedia audio telemetry for the Argus live-view PoC.
+"""Secret-safe BcMedia audio telemetry and optional live audio forwarding.
 
-This observer independently follows the already decoded BcMedia byte stream and
-records only codec/size/header metadata. Raw audio is never persisted, logged or
-included in diagnostics.
+This observer independently follows the already decoded BcMedia byte stream.
+It records only codec/size/header metadata for diagnostics and can optionally
+forward complete in-memory audio payloads to an active live consumer. Raw audio
+is never persisted, logged or included in diagnostics.
 """
 
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from typing import Any
+from typing import Any, Callable
 
 from .live_stream_compat import (
     _AUDIO_MAGICS,
@@ -25,6 +26,8 @@ AAC_MAGIC = b"05wb"
 ADPCM_MAGIC = b"01wb"
 _MAX_BUFFER_BYTES = 8 * 1024 * 1024
 _INSTALLED = False
+
+AudioSink = Callable[[bytes, str], None]
 
 
 @dataclass(slots=True)
@@ -64,8 +67,11 @@ def _record_payload_size(size: int) -> None:
     _LAST.max_payload_bytes = max(_LAST.max_payload_bytes, size)
 
 
-def _consume_bcmedia(buffer: bytearray) -> None:
-    """Consume complete BcMedia packets while observing only audio metadata."""
+def _consume_bcmedia(
+    buffer: bytearray,
+    audio_sink: AudioSink | None = None,
+) -> None:
+    """Consume complete BcMedia packets and optionally forward live audio."""
     all_magics = _INFO_MAGICS + _VIDEO_MAGICS + _AUDIO_MAGICS
 
     while buffer:
@@ -134,8 +140,9 @@ def _consume_bcmedia(buffer: bytearray) -> None:
             _record_payload_size(payload_size)
 
             if magic == AAC_MAGIC:
+                codec_name = "aac"
                 if _LAST.first_codec is None:
-                    _LAST.first_codec = "aac"
+                    _LAST.first_codec = codec_name
                 _LAST.aac_packets += 1
                 _LAST.aac_payload_bytes += payload_size
                 # ADTS syncword is the first 12 bits set: 0xFFF.
@@ -143,14 +150,17 @@ def _consume_bcmedia(buffer: bytearray) -> None:
                     _LAST.aac_adts_sync_packets += 1
                 else:
                     _LAST.aac_without_adts_sync_packets += 1
-            elif magic == ADPCM_MAGIC:
+            else:
+                codec_name = "adpcm"
                 if _LAST.first_codec is None:
-                    _LAST.first_codec = "adpcm"
+                    _LAST.first_codec = codec_name
                 _LAST.adpcm_packets += 1
                 _LAST.adpcm_payload_bytes += payload_size
-                # Neolink documents a little-endian 0x0100 ADPCM sub-header.
                 if len(payload) >= 2 and int.from_bytes(payload[:2], "little") == 0x0100:
                     _LAST.adpcm_subheader_valid_packets += 1
+
+            if audio_sink is not None:
+                audio_sink(payload, codec_name)
 
             del buffer[:packet_size]
             continue
@@ -159,7 +169,7 @@ def _consume_bcmedia(buffer: bytearray) -> None:
 
 
 def install_audio_payload_telemetry() -> None:
-    """Install observation-only audio telemetry exactly once."""
+    """Install audio observation/forwarding exactly once."""
     global _INSTALLED
     if _INSTALLED:
         return
@@ -183,7 +193,11 @@ def install_audio_payload_telemetry() -> None:
                 rolling.extend(chunk)
                 if len(rolling) > _MAX_BUFFER_BYTES:
                     del rolling[: len(rolling) - _MAX_BUFFER_BYTES]
-                _consume_bcmedia(rolling)
+                sink = getattr(self, "_poc_audio_sink", None)
+                _consume_bcmedia(
+                    rolling,
+                    sink if callable(sink) else None,
+                )
 
         original_observe_live_frame(self, frame)
 
