@@ -59,6 +59,30 @@ class LiveProbeState:
     uid_resolve_elapsed_ms: float | None = None
     uid_resolve_succeeded: bool = False
 
+    # Parser telemetry is intentionally metadata-only. It never stores raw
+    # BcMedia, H264/H265, audio, credentials or network identifiers.
+    parser_media_bytes_seen: int = 0
+    parser_rolling_buffer_bytes: int = 0
+    parser_rolling_buffer_peak_bytes: int = 0
+    parser_info_header_hits: int = 0
+    parser_iframe_header_hits: int = 0
+    parser_pframe_header_hits: int = 0
+    parser_audio_header_hits: int = 0
+    parser_first_video_codec: str | None = None
+    parser_first_video_frame_type: str | None = None
+    parser_first_video_declared_payload_bytes: int | None = None
+    parser_first_video_additional_header_bytes: int | None = None
+    parser_pending_packet_type: str | None = None
+    parser_pending_codec: str | None = None
+    parser_pending_declared_payload_bytes: int | None = None
+    parser_pending_additional_header_bytes: int | None = None
+    parser_pending_total_bytes: int | None = None
+    parser_pending_available_bytes: int = 0
+    parser_cmd3_frames_at_stop_send: int | None = None
+    parser_cmd3_frames_after_stop_send: int | None = None
+    parser_stop_quiet_observed: bool | None = None
+    parser_raw_values_exposed: bool = False
+
 
 _STATES: dict[str, LiveProbeState] = {}
 
@@ -74,10 +98,16 @@ def reset_live_probe_state(entry_id: str, *, stream_kind: str = "main") -> None:
 def _apply_uid(state: LiveProbeState, uid_trace: Any | None) -> None:
     if uid_trace is None:
         return
-    state.uid_resolve_timeout_seconds = float(getattr(uid_trace, "timeout_seconds", 0.0))
-    state.uid_resolve_resend_interval_seconds = float(getattr(uid_trace, "resend_interval_seconds", 0.0))
+    state.uid_resolve_timeout_seconds = float(
+        getattr(uid_trace, "timeout_seconds", 0.0)
+    )
+    state.uid_resolve_resend_interval_seconds = float(
+        getattr(uid_trace, "resend_interval_seconds", 0.0)
+    )
     state.uid_resolve_send_rounds = int(getattr(uid_trace, "send_rounds", 0))
-    state.uid_resolve_datagrams_sent = int(getattr(uid_trace, "datagrams_sent", 0))
+    state.uid_resolve_datagrams_sent = int(
+        getattr(uid_trace, "datagrams_sent", 0)
+    )
     state.uid_resolve_elapsed_ms = getattr(uid_trace, "elapsed_ms", None)
     state.uid_resolve_succeeded = bool(getattr(uid_trace, "succeeded", False))
 
@@ -86,14 +116,61 @@ def _apply_trace(state: LiveProbeState, trace: Any | None) -> None:
     if trace is None:
         return
     for name in (
-        "stream_kind", "start_attempted", "start_response_code", "start_accepted",
-        "first_cmd3_delay_ms", "cmd3_frames", "body_frames", "total_body_bytes",
-        "bcmedia_observed", "bcmedia_info_frames", "video_frames", "iframe_frames",
-        "pframe_frames", "h264_frames", "h265_frames", "unknown_body_frames",
-        "stop_attempted", "stop_response_code", "stop_accepted", "heartbeat_count",
-        "connection_lost_exception_present", "elapsed_seconds", "termination_reason",
+        "stream_kind",
+        "start_attempted",
+        "start_response_code",
+        "start_accepted",
+        "first_cmd3_delay_ms",
+        "cmd3_frames",
+        "body_frames",
+        "total_body_bytes",
+        "bcmedia_observed",
+        "bcmedia_info_frames",
+        "video_frames",
+        "iframe_frames",
+        "pframe_frames",
+        "h264_frames",
+        "h265_frames",
+        "unknown_body_frames",
+        "stop_attempted",
+        "stop_response_code",
+        "stop_accepted",
+        "heartbeat_count",
+        "connection_lost_exception_present",
+        "elapsed_seconds",
+        "termination_reason",
     ):
         setattr(state, name, copy.deepcopy(getattr(trace, name)))
+
+
+def apply_parser_telemetry(entry_id: str, telemetry: dict[str, Any]) -> None:
+    """Persist only the approved metadata fields from parser telemetry."""
+    state = live_probe_state(entry_id)
+    for name in (
+        "media_bytes_seen",
+        "rolling_buffer_bytes",
+        "rolling_buffer_peak_bytes",
+        "info_header_hits",
+        "iframe_header_hits",
+        "pframe_header_hits",
+        "audio_header_hits",
+        "first_video_codec",
+        "first_video_frame_type",
+        "first_video_declared_payload_bytes",
+        "first_video_additional_header_bytes",
+        "pending_packet_type",
+        "pending_codec",
+        "pending_declared_payload_bytes",
+        "pending_additional_header_bytes",
+        "pending_total_bytes",
+        "pending_available_bytes",
+        "cmd3_frames_at_stop_send",
+        "cmd3_frames_after_stop_send",
+        "stop_quiet_observed",
+        "raw_values_exposed",
+    ):
+        if name in telemetry:
+            setattr(state, f"parser_{name}", copy.deepcopy(telemetry[name]))
 
 
 def apply_live_probe_result(entry_id: str, result: Any) -> None:
@@ -104,16 +181,30 @@ def apply_live_probe_result(entry_id: str, result: Any) -> None:
     state.response_code = None
     _apply_trace(state, result.trace)
     _apply_uid(state, result.uid_resolve_trace)
-    for prefix, request in (("start_request", result.start_request), ("stop_request", result.stop_request)):
+    for prefix, request in (
+        ("start_request", result.start_request),
+        ("stop_request", result.stop_request),
+    ):
         for field in (
-            "header_channel_id", "stream_type", "msg_num", "message_class",
-            "body_length", "payload_offset", "preview_handle",
+            "header_channel_id",
+            "stream_type",
+            "msg_num",
+            "message_class",
+            "body_length",
+            "payload_offset",
+            "preview_handle",
         ):
             setattr(state, f"{prefix}_{field}", getattr(request, field))
     state.start_request_preview_stream_type = result.start_request.preview_stream_type
-    state.success = bool(result.trace.start_accepted and result.trace.bcmedia_observed)
+    state.success = bool(
+        result.trace.start_accepted and result.trace.bcmedia_observed
+    )
     if not state.success:
-        state.failure_stage = "LIVE_MEDIA_NOT_OBSERVED" if result.trace.start_accepted else "LIVE_STREAM_REJECTED"
+        state.failure_stage = (
+            "LIVE_MEDIA_NOT_OBSERVED"
+            if result.trace.start_accepted
+            else "LIVE_STREAM_REJECTED"
+        )
 
 
 def apply_live_probe_error(entry_id: str, error: Any) -> None:
