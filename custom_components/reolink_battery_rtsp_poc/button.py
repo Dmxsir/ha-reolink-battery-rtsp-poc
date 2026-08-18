@@ -25,6 +25,7 @@ from .github_upload import (
     async_upload_diagnostics,
     github_upload_configured,
 )
+from .live_stream_buffer_compat import install_live_buffer_compat
 from .live_stream_compat import install_preauth_heartbeat_compat
 from .live_stream_diagnostics import (
     apply_live_probe_error,
@@ -46,7 +47,10 @@ if TYPE_CHECKING:
 # Keep the PoC transport behavior aligned with the physically proven production
 # UID/P2P lifetime while remaining entirely inside this experimental domain.
 install_preauth_heartbeat_compat()
-# Observation-only wrapper. Install this after the compatibility layer so it
+# Preserve every complete cmd3/cmd4 message when a receive buffer already holds
+# multiple Baichuan messages.
+install_live_buffer_compat()
+# Observation-only wrapper. Install this after the compatibility layers so it
 # cannot bypass the working auth/stream behavior.
 install_parser_telemetry()
 # Neolink-style Baichuan UDP cmd234 keepalive. Install it last so it wraps the
