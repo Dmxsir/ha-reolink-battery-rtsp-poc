@@ -24,6 +24,10 @@ import secrets
 from typing import Any
 
 from . import live_stream_probe as probe
+from .h264_payload_telemetry import (
+    observe_h264_payload,
+    reset_h264_payload_telemetry,
+)
 from .live_stream_probe import (
     _LiveStreamConnection,
     _LiveStreamProtocol,
@@ -71,8 +75,8 @@ def _padding8(payload_size: int) -> int:
 def _parse_rolling_bcmedia(buffer: bytearray, trace) -> int:
     """Consume complete BcMedia packets and return how many were parsed.
 
-    The parser intentionally extracts only packet type, codec and declared sizes.
-    Video/audio payload bytes are discarded immediately after packet accounting.
+    The parser extracts packet type, codec and declared sizes. Complete H264
+    payloads are inspected only for Annex-B/NAL metadata and are never retained.
     """
     parsed = 0
 
@@ -138,12 +142,24 @@ def _parse_rolling_bcmedia(buffer: bytearray, trace) -> int:
 
             frame_type = magic[1:2]
             if frame_type == b"0":
+                frame_type_name = "iframe"
                 trace.iframe_frames += 1
             elif frame_type == b"1":
+                frame_type_name = "pframe"
                 trace.pframe_frames += 1
             else:
                 del buffer[0]
                 continue
+
+            payload_start = 24 + additional_header_size
+            payload_end = payload_start + payload_size
+            if codec == b"H264":
+                # Metadata-only inspection. observe_h264_payload does not retain
+                # or export the payload bytes.
+                observe_h264_payload(
+                    bytes(buffer[payload_start:payload_end]),
+                    frame_type=frame_type_name,
+                )
 
             trace.video_frames += 1
             if codec == b"H264":
@@ -280,6 +296,7 @@ def install_preauth_heartbeat_compat() -> None:
         trace = _ORIGINAL_PREPARE_LIVE(self, *args, **kwargs)
         self._poc_fresh_heartbeat_tid_enabled = True
         self._poc_media_buffer = bytearray()
+        reset_h264_payload_telemetry()
         return trace
 
     def _observe_live_frame(self, frame) -> None:
