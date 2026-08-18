@@ -43,6 +43,10 @@ from .probe_parser_telemetry import (
     snapshot_parser_telemetry,
 )
 from .udp_media_keepalive import install_udp_media_keepalive
+from .udp_sequence_telemetry import (
+    install_udp_sequence_telemetry,
+    snapshot_udp_sequence_telemetry,
+)
 
 if TYPE_CHECKING:
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -59,9 +63,11 @@ install_live_buffer_compat()
 install_parser_telemetry()
 # Neolink-style Baichuan UDP cmd234 keepalive.
 install_udp_media_keepalive()
-# Timing-only observation wrapper. Install last so it sees the final stream stack
-# without altering any protocol bytes.
+# Timing-only observation wrapper.
 install_media_activity_telemetry()
+# Sequence/ACK observation wrapper. Install last so it sees the final UDP stack
+# without changing ordering, ACKs or retransmission behavior.
+install_udp_sequence_telemetry()
 
 
 PROBE_DESCRIPTION = ButtonEntityDescription(
@@ -108,6 +114,7 @@ class ReolinkProbeLiveStreamButton(ButtonEntity):
                 "probe_duration_seconds", 20.0
             )
             live["media_activity"] = activity
+            live["udp_sequence"] = snapshot_udp_sequence_telemetry()
         await async_upload_diagnostics(self.hass, self._entry, diagnostics)
 
     @property
