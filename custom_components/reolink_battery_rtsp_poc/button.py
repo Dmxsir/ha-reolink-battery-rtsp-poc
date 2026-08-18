@@ -42,6 +42,7 @@ from .probe_parser_telemetry import (
     install_parser_telemetry,
     snapshot_parser_telemetry,
 )
+from .udp_ack_bitmap_compat import install_udp_ack_bitmap_compat
 from .udp_media_keepalive import install_udp_media_keepalive
 from .udp_sequence_telemetry import (
     install_udp_sequence_telemetry,
@@ -65,8 +66,11 @@ install_parser_telemetry()
 install_udp_media_keepalive()
 # Timing-only observation wrapper.
 install_media_activity_telemetry()
-# Sequence/ACK observation wrapper. Install last so it sees the final UDP stack
-# without changing ordering, ACKs or retransmission behavior.
+# Match Neolink's selective UDP ACK bitmap by including the highest pending
+# sequence ID. Keep this PoC-local so the production integration is untouched.
+install_udp_ack_bitmap_compat()
+# Sequence/ACK observation wrapper. Install last so it measures the corrected ACK
+# behavior without changing ordering or retransmission itself.
 install_udp_sequence_telemetry()
 
 
