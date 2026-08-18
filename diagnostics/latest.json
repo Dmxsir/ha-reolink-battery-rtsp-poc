@@ -17,65 +17,96 @@
     "live_stream_probe": {
       "attempted": true,
       "background_streaming_enabled": false,
-      "bcmedia_info_frames": 1,
-      "bcmedia_observed": true,
-      "body_frames": 22,
+      "bcmedia_info_frames": 0,
+      "bcmedia_observed": false,
+      "body_frames": 0,
       "bounded_duration_seconds": 10.0,
-      "cmd3_frames": 22,
+      "cmd3_frames": 0,
       "connection_lost_exception_present": false,
-      "elapsed_seconds": 13.092,
+      "elapsed_seconds": null,
       "experimental": true,
-      "failure_stage": null,
-      "failure_type": null,
-      "first_cmd3_delay_ms": 89.748,
-      "h264_frames": 1,
+      "failure_stage": "LIVE_AUTH_ERROR",
+      "failure_type": "ReolinkConnectionError",
+      "first_cmd3_delay_ms": null,
+      "h264_frames": 0,
       "h265_frames": 0,
-      "heartbeat_count": 14,
-      "iframe_frames": 1,
+      "heartbeat_count": 0,
+      "iframe_frames": 0,
       "manual_only": true,
+      "parser_telemetry": {
+        "first_video_header": {
+          "additional_header_bytes": null,
+          "codec": null,
+          "declared_payload_bytes": null,
+          "frame_type": null
+        },
+        "header_hits": {
+          "audio": 0,
+          "iframe": 0,
+          "info": 0,
+          "pframe": 0
+        },
+        "media_bytes_seen": 0,
+        "pending_packet": {
+          "additional_header_bytes": null,
+          "available_bytes": 0,
+          "codec": null,
+          "declared_payload_bytes": null,
+          "total_bytes": null,
+          "type": null
+        },
+        "raw_values_exposed": false,
+        "rolling_buffer_bytes": 0,
+        "rolling_buffer_peak_bytes": 0,
+        "stop_observation": {
+          "cmd3_frames_after_stop_send": null,
+          "cmd3_frames_at_stop_send": null,
+          "quiet_after_stop": null
+        }
+      },
       "pframe_frames": 0,
       "raw_values_exposed": false,
       "response_code": null,
-      "start_accepted": true,
-      "start_attempted": true,
+      "start_accepted": false,
+      "start_attempted": false,
       "start_request": {
-        "body_length": 165,
-        "header_channel_id": 0,
-        "message_class": "0x6414",
-        "msg_num": 3,
-        "payload_offset": 0,
-        "preview_handle": 0,
-        "preview_stream_type": "mainStream",
-        "stream_type": 0
+        "body_length": null,
+        "header_channel_id": null,
+        "message_class": null,
+        "msg_num": null,
+        "payload_offset": null,
+        "preview_handle": null,
+        "preview_stream_type": null,
+        "stream_type": null
       },
-      "start_response_code": 200,
+      "start_response_code": null,
       "stop_accepted": false,
-      "stop_attempted": true,
+      "stop_attempted": false,
       "stop_request": {
-        "body_length": 130,
-        "header_channel_id": 0,
-        "message_class": "0x6414",
-        "msg_num": 4,
-        "payload_offset": 0,
-        "preview_handle": 0,
-        "stream_type": 0
+        "body_length": null,
+        "header_channel_id": null,
+        "message_class": null,
+        "msg_num": null,
+        "payload_offset": null,
+        "preview_handle": null,
+        "stream_type": null
       },
       "stop_response_code": null,
       "stream_kind": "main",
-      "success": true,
-      "termination_reason": "stop_timeout",
-      "total_body_bytes": 445654,
+      "success": false,
+      "termination_reason": null,
+      "total_body_bytes": 0,
       "uid_resolve": {
-        "datagrams_sent": 28,
-        "elapsed_ms": 3697.443,
+        "datagrams_sent": 24,
+        "elapsed_ms": 3214.286,
         "network_identifiers_exposed": false,
         "resend_interval_seconds": 0.5,
-        "send_rounds": 7,
+        "send_rounds": 6,
         "succeeded": true,
         "timeout_seconds": 15.0
       },
-      "unknown_body_frames": 15,
-      "video_frames": 1
+      "unknown_body_frames": 0,
+      "video_frames": 0
     },
     "source_integration": {
       "configured": true,
@@ -85,5 +116,5 @@
     }
   },
   "source": "reolink_battery_rtsp_poc",
-  "uploaded_at": "2026-08-18T19:21:01.280141+00:00"
+  "uploaded_at": "2026-08-18T19:32:40.500075+00:00"
 }
