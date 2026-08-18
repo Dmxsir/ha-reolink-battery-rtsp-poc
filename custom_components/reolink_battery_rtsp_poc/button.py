@@ -25,6 +25,7 @@ from .github_upload import (
     async_upload_diagnostics,
     github_upload_configured,
 )
+from .h264_payload_telemetry import snapshot_h264_payload_telemetry
 from .live_stream_buffer_compat import install_live_buffer_compat
 from .live_stream_compat import install_preauth_heartbeat_compat
 from .live_stream_diagnostics import (
@@ -119,6 +120,7 @@ class ReolinkProbeLiveStreamButton(ButtonEntity):
             )
             live["media_activity"] = activity
             live["udp_sequence"] = snapshot_udp_sequence_telemetry()
+            live["h264_payload"] = snapshot_h264_payload_telemetry()
         await async_upload_diagnostics(self.hass, self._entry, diagnostics)
 
     @property
