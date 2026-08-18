@@ -19,18 +19,18 @@
       "background_streaming_enabled": false,
       "bcmedia_info_frames": 1,
       "bcmedia_observed": true,
-      "body_frames": 15,
+      "body_frames": 22,
       "bounded_duration_seconds": 10.0,
-      "cmd3_frames": 15,
+      "cmd3_frames": 22,
       "connection_lost_exception_present": false,
-      "elapsed_seconds": 13.152,
+      "elapsed_seconds": 13.092,
       "experimental": true,
       "failure_stage": null,
       "failure_type": null,
-      "first_cmd3_delay_ms": 120.592,
+      "first_cmd3_delay_ms": 89.748,
       "h264_frames": 1,
       "h265_frames": 0,
-      "heartbeat_count": 15,
+      "heartbeat_count": 14,
       "iframe_frames": 1,
       "manual_only": true,
       "pframe_frames": 0,
@@ -64,17 +64,17 @@
       "stream_kind": "main",
       "success": true,
       "termination_reason": "stop_timeout",
-      "total_body_bytes": 334018,
+      "total_body_bytes": 445654,
       "uid_resolve": {
-        "datagrams_sent": 8,
-        "elapsed_ms": 726.286,
+        "datagrams_sent": 28,
+        "elapsed_ms": 3697.443,
         "network_identifiers_exposed": false,
         "resend_interval_seconds": 0.5,
-        "send_rounds": 2,
+        "send_rounds": 7,
         "succeeded": true,
         "timeout_seconds": 15.0
       },
-      "unknown_body_frames": 13,
+      "unknown_body_frames": 15,
       "video_frames": 1
     },
     "source_integration": {
@@ -85,5 +85,5 @@
     }
   },
   "source": "reolink_battery_rtsp_poc",
-  "uploaded_at": "2026-08-18T19:09:14.856032+00:00"
+  "uploaded_at": "2026-08-18T19:21:01.280141+00:00"
 }
