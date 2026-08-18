@@ -6,8 +6,8 @@
       "enabled": true,
       "failure_type": null,
       "http_status": 200,
-      "last_attempt_time": "2026-08-18T22:02:38.905850+00:00",
-      "last_success_time": "2026-08-18T22:02:40.064209+00:00",
+      "last_attempt_time": "2026-08-18T22:02:53.953559+00:00",
+      "last_success_time": "2026-08-18T22:02:55.024612+00:00",
       "path": "diagnostics/latest.json",
       "repository": "Dmxsir/ha-reolink-battery-rtsp-poc",
       "success": true,
@@ -171,7 +171,7 @@
       },
       "uid_resolve": {
         "datagrams_sent": 100,
-        "elapsed_ms": 15044.84,
+        "elapsed_ms": 15032.612,
         "network_identifiers_exposed": false,
         "resend_interval_seconds": 0.5,
         "send_rounds": 25,
@@ -189,5 +189,5 @@
     }
   },
   "source": "reolink_battery_rtsp_poc",
-  "uploaded_at": "2026-08-18T22:02:54.263432+00:00"
+  "uploaded_at": "2026-08-18T22:05:12.430342+00:00"
 }
