@@ -1,4 +1,4 @@
-"""On-demand H264 source built on the proven Argus Baichuan live transport."""
+"""On-demand H264/AAC source built on the proven Argus Baichuan transport."""
 
 from __future__ import annotations
 
@@ -34,6 +34,7 @@ from .transport import (
 from .udp_media_keepalive import _keepalive_loop, _send_once, _stop_keepalive
 
 H264FrameSink = Callable[[bytes, str], None]
+AudioFrameSink = Callable[[bytes, str], None]
 
 
 async def async_stream_h264(
@@ -44,13 +45,14 @@ async def async_stream_h264(
     *,
     frame_sink: H264FrameSink,
     stop_event: asyncio.Event,
+    audio_sink: AudioFrameSink | None = None,
     resolve_timeout: float = UID_RESOLVE_TIMEOUT_SECONDS,
     command_timeout: int = 30,
 ) -> LiveStreamTrace:
-    """Stream main H264 until the consumer disconnects or the camera closes.
+    """Stream main H264 and optional audio until consumers disconnect.
 
-    Raw H264 exists only in memory long enough to be forwarded to ``frame_sink``.
-    Nothing is written to disk or diagnostics by this function.
+    Raw media exists only in memory long enough to be forwarded to the supplied
+    sinks. Nothing is written to disk or diagnostics by this function.
     """
     lease = None
     host = None
@@ -116,6 +118,7 @@ async def async_stream_h264(
             stream_kind="main",
         )
         connection._poc_h264_sink = frame_sink
+        connection._poc_audio_sink = audio_sink
         connection.start_heartbeat()
 
         start_wire, start_request = probe._build_preview_wire(
@@ -141,8 +144,6 @@ async def async_stream_h264(
             connection._observe_live_frame,
         )
 
-        # cmd234 is required for sustained UDP media. Use exactly the same
-        # keepalive implementation proven by the bounded probe.
         await _send_once(connection)
         connection._poc_udp_media_keepalive_task = connection._loop.create_task(
             _keepalive_loop(connection)
@@ -168,7 +169,6 @@ async def async_stream_h264(
                 uid_resolve_trace=uid_trace,
             )
 
-        # The HTTP client lifetime controls the battery camera lifetime.
         while connection.connection_open and not stop_event.is_set():
             await asyncio.sleep(0.05)
 
@@ -216,6 +216,7 @@ async def async_stream_h264(
         stop_event.set()
         if connection is not None:
             connection._poc_h264_sink = None
+            connection._poc_audio_sink = None
             with suppress(Exception):
                 await _stop_keepalive(connection)
             protocol = connection._protocol
