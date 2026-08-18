@@ -15,6 +15,21 @@
       "already_configured": "An RTSP PoC entry already exists for this camera."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "GitHub diagnostics upload",
+        "description": "Optionally upload the secret-safe PoC diagnostics after every live-stream probe. Use a fine-grained GitHub token restricted to this repository with Contents: Read and write. The token is never included in diagnostics. Leave the token field blank to keep the currently saved token.",
+        "data": {
+          "github_diagnostics_enabled": "Upload diagnostics automatically",
+          "github_token": "Fine-grained GitHub token"
+        }
+      }
+    },
+    "error": {
+      "github_token_required": "A GitHub token is required when automatic diagnostics upload is enabled."
+    }
+  },
   "entity": {
     "button": {
       "probe_live_stream": {
