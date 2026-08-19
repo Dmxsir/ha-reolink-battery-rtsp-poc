@@ -31,12 +31,23 @@ async def async_get_config_entry_diagnostics(
     live = live_probe_state(entry.entry_id)
     upload = github_upload_state(entry.entry_id)
     udp_keepalive = snapshot_udp_media_keepalive()
+    bridge = entry.runtime_data.go2rtc_bridge
     return {
         "source_integration": {
             "configured": source is not None,
             "loaded": bool(source is not None and source.runtime_data is not None),
             "credentials_reused_from_source": True,
             "credentials_exposed": False,
+        },
+        "go2rtc_bridge": {
+            "attempted": bool(bridge is not None and bridge.attempted),
+            "success": bool(bridge is not None and bridge.success),
+            "stream_name": bridge.stream_name if bridge is not None else None,
+            "http_status": bridge.http_status if bridge is not None else None,
+            "failure_type": bridge.failure_type if bridge is not None else None,
+            "sources_registered": bridge.sources_registered if bridge is not None else 0,
+            "rtsp_source_available": bool(bridge is not None and bridge.rtsp_url),
+            "network_identifiers_exposed": False,
         },
         "github_diagnostics": {
             "enabled": bool(
