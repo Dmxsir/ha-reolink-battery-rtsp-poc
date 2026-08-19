@@ -35,6 +35,11 @@
       "probe_live_stream": {
         "name": "בדיקת תצוגה חיה"
       }
+    },
+    "camera": {
+      "live_view": {
+        "name": "תצוגה חיה"
+      }
     }
   }
 }
