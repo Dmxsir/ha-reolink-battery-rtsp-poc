@@ -15,7 +15,6 @@ from .const import (
     SOURCE_CONF_MODEL,
     SOURCE_CONF_UID,
 )
-from .http_stream import ReolinkBatteryAvHub
 
 if TYPE_CHECKING:
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -27,7 +26,9 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the on-demand Argus camera entity."""
-    async_add_entities((ReolinkBatteryLiveCamera(entry),))
+    source = source_entry_for(hass, entry.runtime_data.source_entry_id)
+    source_data = source.data if source is not None else {}
+    async_add_entities((ReolinkBatteryLiveCamera(entry, source_data),))
 
 
 class ReolinkBatteryLiveCamera(Camera):
@@ -38,16 +39,10 @@ class ReolinkBatteryLiveCamera(Camera):
     _attr_supported_features = CameraEntityFeature.STREAM
     _attr_brand = MANUFACTURER
 
-    def __init__(self, entry: ReolinkBatteryRtspPocConfigEntry) -> None:
+    def __init__(self, entry: ReolinkBatteryRtspPocConfigEntry, source_data) -> None:
         super().__init__()
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_live_camera"
-
-        source = source_entry_for(
-            entry.runtime_data.av_hub.hass,
-            entry.runtime_data.source_entry_id,
-        ) if isinstance(entry.runtime_data.av_hub, ReolinkBatteryAvHub) else None
-        source_data = source.data if source is not None else {}
         self._attr_model = source_data.get(SOURCE_CONF_MODEL, "Battery camera")
 
     def _source_entry(self):
@@ -57,7 +52,7 @@ class ReolinkBatteryLiveCamera(Camera):
 
     @property
     def available(self) -> bool:
-        """Return whether the source integration and bridge URL are available."""
+        """Return whether the source integration and RTSP bridge are available."""
         source = self._source_entry()
         bridge = self._entry.runtime_data.go2rtc_bridge
         return bool(
@@ -66,12 +61,6 @@ class ReolinkBatteryLiveCamera(Camera):
             and bridge is not None
             and bridge.rtsp_url
         )
-
-    @property
-    def is_streaming(self) -> bool:
-        """Return whether the shared camera session currently has a producer."""
-        hub = self._entry.runtime_data.av_hub
-        return bool(isinstance(hub, ReolinkBatteryAvHub) and hub.is_active)
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -87,7 +76,7 @@ class ReolinkBatteryLiveCamera(Camera):
         )
 
     async def stream_source(self) -> str | None:
-        """Return the go2rtc RTSP source used by Home Assistant stream."""
+        """Return the go2rtc RTSP source used by Home Assistant Stream."""
         bridge = self._entry.runtime_data.go2rtc_bridge
         return bridge.rtsp_url if bridge is not None else None
 
@@ -96,5 +85,5 @@ class ReolinkBatteryLiveCamera(Camera):
         width: int | None = None,
         height: int | None = None,
     ) -> bytes | None:
-        """Do not wake the battery camera merely to generate dashboard stills."""
+        """Avoid waking the battery camera just to generate dashboard stills."""
         return None
